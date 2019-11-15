@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 pub use tokio::runtime::current_thread::block_on_all as run;
 
 pub struct Server {
-    p: Child,
+    p: Option<Child>,
 }
 
 fn sleep() {
@@ -21,14 +21,20 @@ fn flush(cli: &redis::Client) {
 }
 
 impl Server {
-    fn new(port: &str) -> Self {
-        let p = Command::new("redis-server")
-            .arg(format!("--port {}", port))
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .expect("Couldn't run redis-server");
+    fn new(port: &str, disable: bool) -> Self {
+        let p = if disable {
+            None
+        } else {
+            Some(
+                Command::new("redis-server")
+                    .arg(format!("--port {}", port))
+                    .stdin(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .spawn()
+                    .expect("Couldn't run redis-server"),
+            )
+        };
 
         Self { p }
     }
@@ -36,15 +42,18 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        self.p.kill().expect("Couldn't kill redis-server");
+        if let Some(p) = self.p.as_mut() {
+            p.kill().expect("Couldn't kill redis-server");
+        }
     }
 }
 
 pub fn setup() -> (Server, Client) {
+    let disable = std::env::var("NO_REDIS").is_ok();
     let port = std::env::var("PORT").unwrap_or("6379".into());
 
     // Run redis server
-    let server = Server::new(&port);
+    let server = Server::new(&port, disable);
 
     sleep();
 
