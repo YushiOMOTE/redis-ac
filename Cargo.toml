@@ -2,6 +2,13 @@
 name = "redis-ac"
 version = "0.1.0"
 authors = ["Yushi Omote <yushi.omote@sbibits.com>"]
+keywords = ["redis", "database"]
+description = "Asynchronuos commands helper for redis-rs"
+homepage = "https://github.com/yushiomote/redis-ac"
+repository = "https://github.com/yushiomote/redis-ac"
+documentation = "https://docs.rs/redis-ac"
+license = "BSD-3-Clause"
+readme = "README.md"
 edition = "2018"
 
 [features]
