@@ -89,3 +89,44 @@ where
         }
     }
 }
+
+/// Collects all the results from a scan command.
+pub struct RedisScanAll<C, RV> {
+    items: Vec<RV>,
+    inner: RedisStream<C, RV>,
+}
+
+impl<C, RV> RedisScanAll<C, RV> {
+    fn new(inner: RedisStream<C, RV>) -> Self {
+        Self {
+            items: Vec::new(),
+            inner,
+        }
+    }
+}
+
+impl<C, RV> Future for RedisScanAll<C, RV>
+where
+    C: ConnectionLike + Send + 'static,
+    RV: FromRedisValue + Send + 'static,
+{
+    type Item = (C, Vec<RV>);
+    type Error = RedisError;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        loop {
+            match try_ready!(self.inner.poll()) {
+                Some((None, item)) => {
+                    self.items.push(item);
+                    continue;
+                }
+                Some((Some(con), item)) => {
+                    self.items.push(item);
+                    // RedisStream guarantees that it returns `Some(con)` with last item.
+                    return Ok(Async::Ready((con, self.items.split_off(0))));
+                }
+                None => panic!("Future polled again after it's done"),
+            }
+        }
+    }
+}

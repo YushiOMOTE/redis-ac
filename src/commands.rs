@@ -13,7 +13,7 @@ use redis::aio::ConnectionLike;
 use redis::geo;
 
 use crate::stream::stream;
-pub use crate::stream::RedisStream;
+pub use crate::stream::{RedisStream, RedisScanAll};
 
 impl<T> Commands for T where T: ConnectionLike+Send+Sized+'static {}
 
