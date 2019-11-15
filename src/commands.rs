@@ -15,8 +15,7 @@ use redis::geo;
 use crate::stream::stream;
 pub use crate::stream::RedisStream;
 
-impl Commands for redis::aio::Connection {}
-impl Commands for redis::aio::SharedConnection {}
+impl<T> Commands for T where T: ConnectionLike+Send+Sized+'static {}
 
 macro_rules! implement_commands {
     (
