@@ -1,10 +1,14 @@
 # redis-ac
 
-Asynchronous version of [`redis::Commands`](https://github.com/mitsuhiko/redis-rs/blob/master/src/commands.rs) trait.
+Asynchronous version of [`redis::Commands`](https://docs.rs/redis/0.13.0/redis/trait.Commands.html) trait.
 
 ## Get/set
 
 ```rust
+use futures::prelude::*;
+use redis_ac::Commands;
+
+fn main() {
     let client = redis::Client::open("redis://127.0.0.1/").unwrap();
 
     let f = client
@@ -22,11 +26,16 @@ Asynchronous version of [`redis::Commands`](https://github.com/mitsuhiko/redis-r
         .map_err(|e| panic!("{}", e));
 
     tokio::run(f);
+}
 ```
 
 ## Scan
 
 ```rust
+use futures::prelude::*;
+use redis_ac::Commands;
+
+fn main() {
     let client = redis::Client::open("redis://127.0.0.1/").unwrap();
 
     let f = client
@@ -42,4 +51,5 @@ Asynchronous version of [`redis::Commands`](https://github.com/mitsuhiko/redis-r
         .map_err(|e| panic!("{}", e));
 
     tokio::run(f);
+}
 ```
