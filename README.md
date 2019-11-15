@@ -1,6 +1,6 @@
 # redis-ac
 
-Asynchronous version of `redis::Commands` trait.
+Asynchronous version of [`redis::Commands`](https://github.com/mitsuhiko/redis-rs/blob/master/src/commands.rs) trait.
 
 ## Get/set
 
