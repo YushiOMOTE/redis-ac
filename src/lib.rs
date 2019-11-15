@@ -1,4 +1,4 @@
 mod commands;
 mod stream;
 
-pub use crate::commands::Commands;
+pub use crate::commands::{Commands, RedisStream};
