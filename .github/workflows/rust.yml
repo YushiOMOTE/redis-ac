@@ -1,0 +1,27 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+        - 6379:6379
+        options: --entrypoint redis-server
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build
+      run: cargo build --verbose
+    - name: Build (geospatial)
+      run: cargo build --verbose --features geospatial
+    - name: Run tests
+      run: cargo test --verbose
+      env:
+        NO_REDIS: 1
+        RUST_TEST_THREADS: 1
