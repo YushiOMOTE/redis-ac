@@ -2,6 +2,7 @@ use futures::{prelude::*, try_ready};
 use redis::{aio::ConnectionLike, Cmd, FromRedisValue, RedisError, RedisFuture};
 use std::collections::VecDeque;
 
+/// Stream over items of scan commands.
 pub struct RedisStream<C, RV> {
     cursor: u64,
     con: Option<C>,
@@ -24,7 +25,7 @@ where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
 {
-    pub fn new<F: Fn(u64) -> Cmd + Send + 'static>(con: C, factory: F) -> Self {
+    pub(crate) fn new<F: Fn(u64) -> Cmd + Send + 'static>(con: C, factory: F) -> Self {
         // Create initial query
         let pending = factory(0).query_async(con);
 
@@ -61,6 +62,32 @@ where
                 return Ok(Async::Ready(None));
             }
         }
+    }
+
+    /// Collects all the results of scanning.
+    ///
+    /// ```rust,no_run
+    /// use futures::prelude::*;
+    /// use redis_ac::Commands;
+    ///
+    /// # fn main() {
+    /// let client = redis::Client::open("redis://127.0.0.1").unwrap();
+    /// let connect = client.get_async_connection();
+    ///
+    /// let f = connect.and_then(|con|{
+    ///     con.scan_match("key*")
+    ///         .all()
+    ///         .map(|(_, items): (_, Vec<String>)| {
+    ///             // All items retrieved by `scan_match`.
+    ///             println!("{:?}", items)
+    ///         })
+    /// }).map_err(|e| eprintln!("{}", e));
+    ///
+    /// tokio::run(f);
+    /// # }
+    /// ```
+    pub fn all(self) -> RedisScanAll<C, RV> {
+        RedisScanAll::new(self)
     }
 }
 
