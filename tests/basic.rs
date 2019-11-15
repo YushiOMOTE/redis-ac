@@ -1,9 +1,13 @@
 use futures::prelude::*;
 use redis_ac::Commands;
 
+mod helper;
+
+use helper::{run, setup};
+
 #[test]
 fn setget() {
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let (_s, client) = setup();
 
     let f = client
         .get_async_connection()
@@ -19,12 +23,12 @@ fn setget() {
         })
         .map_err(|e| panic!("{}", e));
 
-    tokio::run(f);
+    run(f).unwrap();
 }
 
 #[test]
 fn scan() {
-    let client = redis::Client::open("redis://127.0.0.1/").unwrap();
+    let (_s, client) = setup();
 
     let f = client
         .get_shared_async_connection()
@@ -48,5 +52,5 @@ fn scan() {
         })
         .map_err(|e| panic!("{}", e));
 
-    tokio::run(f);
+    run(f).unwrap();
 }
