@@ -11,3 +11,6 @@ geospatial = ["redis/geospatial"]
 [dependencies]
 futures = "0.1"
 redis = "0.13"
+
+[dev-dependencies]
+tokio = "0.1"

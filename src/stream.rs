@@ -5,17 +5,18 @@ use std::collections::VecDeque;
 pub struct RedisStream<C, RV> {
     cursor: u64,
     con: Option<C>,
-    cmd: Cmd,
+    factory: Box<dyn Fn(u64) -> Cmd + Send>,
     pending: Option<RedisFuture<(C, (u64, Vec<RV>))>>,
     queue: VecDeque<RV>,
 }
 
-pub fn stream<C, RV>(con: C, cmd: Cmd) -> RedisStream<C, RV>
+pub fn stream<F, C, RV>(con: C, factory: F) -> RedisStream<C, RV>
 where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
+    F: Fn(u64) -> Cmd + Send + 'static,
 {
-    RedisStream::new(con, cmd)
+    RedisStream::new(con, factory)
 }
 
 impl<C, RV> RedisStream<C, RV>
@@ -23,14 +24,14 @@ where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
 {
-    pub fn new(con: C, cmd: Cmd) -> Self {
+    pub fn new<F: Fn(u64) -> Cmd + Send + 'static>(con: C, factory: F) -> Self {
         // Create initial query
-        let pending = cmd.query_async(con);
+        let pending = factory(0).query_async(con);
 
         Self {
             cursor: 0,
             con: None,
-            cmd,
+            factory: Box::new(factory),
             pending: Some(pending),
             queue: VecDeque::new(),
         }
@@ -50,11 +51,10 @@ where
 
                 if self.cursor != 0 {
                     // Query again
-                    self.pending = Some(
-                        self.cmd
-                            .cursor_arg(self.cursor)
-                            .query_async(self.con.take().unwrap()),
-                    );
+                    self.pending =
+                        Some((self.factory)(self.cursor).query_async(self.con.take().unwrap()));
+                } else {
+                    self.pending = None;
                 }
             } else {
                 // No need to query
