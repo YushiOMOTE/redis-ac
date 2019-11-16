@@ -3,7 +3,7 @@ use redis::{aio::ConnectionLike, Cmd, FromRedisValue, RedisError, RedisFuture};
 use std::collections::VecDeque;
 
 /// Stream over items of scan commands.
-pub struct RedisStream<C, RV> {
+pub struct RedisScanStream<C, RV> {
     cursor: u64,
     con: Option<C>,
     factory: Box<dyn Fn(u64) -> Cmd + Send>,
@@ -11,16 +11,16 @@ pub struct RedisStream<C, RV> {
     queue: VecDeque<RV>,
 }
 
-pub fn stream<F, C, RV>(con: C, factory: F) -> RedisStream<C, RV>
+pub fn stream<F, C, RV>(con: C, factory: F) -> RedisScanStream<C, RV>
 where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
     F: Fn(u64) -> Cmd + Send + 'static,
 {
-    RedisStream::new(con, factory)
+    RedisScanStream::new(con, factory)
 }
 
-impl<C, RV> RedisStream<C, RV>
+impl<C, RV> RedisScanStream<C, RV>
 where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
@@ -91,7 +91,7 @@ where
     }
 }
 
-impl<C, RV> Stream for RedisStream<C, RV>
+impl<C, RV> Stream for RedisScanStream<C, RV>
 where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
@@ -120,11 +120,11 @@ where
 /// Collects all the results from a scan command.
 pub struct RedisScanAll<C, RV> {
     items: Vec<RV>,
-    inner: RedisStream<C, RV>,
+    inner: RedisScanStream<C, RV>,
 }
 
 impl<C, RV> RedisScanAll<C, RV> {
-    fn new(inner: RedisStream<C, RV>) -> Self {
+    fn new(inner: RedisScanStream<C, RV>) -> Self {
         Self {
             items: Vec::new(),
             inner,
@@ -149,7 +149,7 @@ where
                 }
                 Some((Some(con), item)) => {
                     self.items.push(item);
-                    // RedisStream guarantees that it returns `Some(con)` with last item.
+                    // RedisScanStream guarantees that it returns `Some(con)` with last item.
                     return Ok(Async::Ready((con, self.items.split_off(0))));
                 }
                 None => panic!("Future polled again after it's done"),

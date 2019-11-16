@@ -30,6 +30,130 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use redis::aio::ConnectionLike;
+use redis::{cmd, FromRedisValue, NumericBehavior, RedisFuture, ToRedisArgs};
+
+#[cfg(feature = "geospatial")]
+use redis::geo;
+
+use crate::stream::stream;
+pub use crate::stream::{RedisScanAll, RedisScanStream};
+
+impl<T> Commands for T where T: ConnectionLike + Send + Sized + 'static {}
+
+macro_rules! implement_commands {
+    (
+        $(
+            $(#[$attr:meta])+
+            fn $name:ident<$($tyargs:ident : $ty:ident),*>(
+                $($argname:ident: $argty:ty),*) $body:block
+        )*
+    ) =>
+    (
+
+        /// Asynchronous version of [`redis::Commands`][].
+        ///
+        /// # Constraints
+        ///
+        /// The arguments of scan commands are required to implement `Clone` because
+        /// they need to create multiple [`redis::Cmd`][] objects internally.
+        pub trait Commands : ConnectionLike+Send+Sized+'static {
+            $(
+                $(#[$attr])*
+                #[inline]
+                fn $name<$($tyargs: $ty,)* RV: FromRedisValue+Send+'static>(self $(, $argname: $argty)*) -> RedisFuture<(Self, RV)>
+                    { ($body).query_async(self) }
+            )*
+
+            /// Incrementally iterate the keys space.
+            #[inline]
+            fn scan<RV: FromRedisValue+Send+'static>(self) -> RedisScanStream<Self, RV> {
+                stream(self, |cur| {
+                    let mut c = cmd("SCAN");
+                    c.arg(cur);
+                    c
+                })
+            }
+
+            /// Incrementally iterate the keys space for keys matching a pattern.
+            #[inline]
+            fn scan_match<P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, pattern: P) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("SCAN");
+                    c.arg(cur)
+                        .arg("MATCH")
+                        .arg(pattern.clone());
+                    c
+                })
+            }
+
+            /// Incrementally iterate hash fields and associated values.
+            #[inline]
+            fn hscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("HSCAN");
+                    c.arg(key.clone()).arg(cur);
+                    c
+                })
+            }
+
+            /// Incrementally iterate hash fields and associated values for
+            /// field names matching a pattern.
+            #[inline]
+            fn hscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
+                    (self, key: K, pattern: P) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("HSCAN");
+                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
+                    c
+                })
+            }
+
+            /// Incrementally iterate set elements.
+            #[inline]
+            fn sscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("SSCAN");
+                    c.arg(key.clone()).cursor_arg(cur);
+                    c
+                })
+            }
+
+            /// Incrementally iterate set elements for elements matching a pattern.
+            #[inline]
+            fn sscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
+                    (self, key: K, pattern: P) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("SSCAN");
+                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
+                    c
+                })
+            }
+
+            /// Incrementally iterate sorted set elements.
+            #[inline]
+            fn zscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("ZSCAN");
+                    c.arg(key.clone()).arg(cur);
+                    c
+                })
+            }
+
+            /// Incrementally iterate sorted set elements for elements matching a pattern.
+            #[inline]
+            fn zscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
+                    (self, key: K, pattern: P) -> RedisScanStream<Self, RV> {
+                stream(self, move |cur| {
+                    let mut c = cmd("ZSCAN");
+                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
+                    c
+                })
+            }
+        }
+    )
+}
+
 // Copyright (c) 2013 by Armin Ronacher.
 //
 // Some rights reserved.
@@ -64,133 +188,6 @@
 //
 // https://docs.rs/redis/0.13.0/src/redis/commands.rs.html
 //
-
-// can't use rustfmt here because it screws up the file.
-#![cfg_attr(rustfmt, rustfmt_skip)]
-
-use redis::{cmd, FromRedisValue, ToRedisArgs, RedisFuture, NumericBehavior};
-use redis::aio::ConnectionLike;
-
-#[cfg(feature = "geospatial")]
-use redis::geo;
-
-use crate::stream::stream;
-pub use crate::stream::{RedisStream, RedisScanAll};
-
-impl<T> Commands for T where T: ConnectionLike+Send+Sized+'static {}
-
-macro_rules! implement_commands {
-    (
-        $(
-            $(#[$attr:meta])+
-            fn $name:ident<$($tyargs:ident : $ty:ident),*>(
-                $($argname:ident: $argty:ty),*) $body:block
-        )*
-    ) =>
-    (
-
-        /// Asynchronous version of [`redis::Commands`][].
-        ///
-        /// # Constraints
-        ///
-        /// The arguments of scan commands are required to implement `Clone` because
-        /// they need to create multiple [`redis::Cmd`][] objects internally.
-        pub trait Commands : ConnectionLike+Send+Sized+'static {
-            $(
-                $(#[$attr])*
-                #[inline]
-                fn $name<$($tyargs: $ty,)* RV: FromRedisValue+Send+'static>(self $(, $argname: $argty)*) -> RedisFuture<(Self, RV)>
-                    { ($body).query_async(self) }
-            )*
-
-            /// Incrementally iterate the keys space.
-            #[inline]
-            fn scan<RV: FromRedisValue+Send+'static>(self) -> RedisStream<Self, RV> {
-                stream(self, |cur| {
-                    let mut c = cmd("SCAN");
-                    c.arg(cur);
-                    c
-                })
-            }
-
-            /// Incrementally iterate the keys space for keys matching a pattern.
-            #[inline]
-            fn scan_match<P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, pattern: P) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("SCAN");
-                    c.arg(cur)
-                        .arg("MATCH")
-                        .arg(pattern.clone());
-                    c
-                })
-            }
-
-            /// Incrementally iterate hash fields and associated values.
-            #[inline]
-            fn hscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("HSCAN");
-                    c.arg(key.clone()).arg(cur);
-                    c
-                })
-            }
-
-            /// Incrementally iterate hash fields and associated values for
-            /// field names matching a pattern.
-            #[inline]
-            fn hscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
-                    (self, key: K, pattern: P) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("HSCAN");
-                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
-                    c
-                })
-            }
-
-            /// Incrementally iterate set elements.
-            #[inline]
-            fn sscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("SSCAN");
-                    c.arg(key.clone()).cursor_arg(cur);
-                    c
-                })
-            }
-
-            /// Incrementally iterate set elements for elements matching a pattern.
-            #[inline]
-            fn sscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
-                    (self, key: K, pattern: P) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("SSCAN");
-                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
-                    c
-                })
-            }
-
-            /// Incrementally iterate sorted set elements.
-            #[inline]
-            fn zscan<K: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>(self, key: K) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("ZSCAN");
-                    c.arg(key.clone()).arg(cur);
-                    c
-                })
-            }
-
-            /// Incrementally iterate sorted set elements for elements matching a pattern.
-            #[inline]
-            fn zscan_match<K: ToRedisArgs+Clone+Send+'static, P: ToRedisArgs+Clone+Send+'static, RV: FromRedisValue+Send+'static>
-                    (self, key: K, pattern: P) -> RedisStream<Self, RV> {
-                stream(self, move |cur| {
-                    let mut c = cmd("ZSCAN");
-                    c.arg(key.clone()).arg(cur).arg("MATCH").arg(pattern.clone());
-                    c
-                })
-            }
-        }
-    )
-}
 
 implement_commands! {
     // most common operations
