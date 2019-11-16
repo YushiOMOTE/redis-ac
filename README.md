@@ -2,6 +2,11 @@
 
 Asynchronous version of [`redis::Commands`](https://docs.rs/redis/0.13.0/redis/trait.Commands.html) trait.
 
+[![Latest version](https://img.shields.io/crates/v/redis-ac.svg)](https://crates.io/crates/redis-ac)
+[![Documentation](https://docs.rs/redis-ac/badge.svg)](https://docs.rs/redis-ac)
+[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Actions Status](https://github.com/YushiOMOTE/redis-ac/workflows/Rust/badge.svg)](https://github.com/YushiOMOTE/redis-ac/actions)
+
 ## Get/set
 
 ```rust
