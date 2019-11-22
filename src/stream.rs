@@ -137,7 +137,7 @@ where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
 {
-    type Item = (C, Vec<RV>);
+    type Item = (Option<C>, Vec<RV>);
     type Error = RedisError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
@@ -150,9 +150,9 @@ where
                 Some((Some(con), item)) => {
                     self.items.push(item);
                     // RedisScanStream guarantees that it returns `Some(con)` with last item.
-                    return Ok(Async::Ready((con, self.items.split_off(0))));
+                    return Ok(Async::Ready((Some(con), self.items.split_off(0))));
                 }
-                None => panic!("Future polled again after it's done"),
+                None => return Ok(Async::Ready((None, vec![]))),
             }
         }
     }
