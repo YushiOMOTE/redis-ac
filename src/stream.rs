@@ -39,7 +39,7 @@ where
     }
 
     // This function actually never return Ok(Async::Ready(Some(_)))
-    fn poll_query(&mut self) -> Poll<Option<(Option<C>, RV)>, RedisError> {
+    fn poll_query(&mut self) -> Poll<Option<(Option<C>, Option<RV>)>, RedisError> {
         loop {
             // Try polling
             let p = self.pending.as_mut().map(|p| p.poll());
@@ -58,7 +58,7 @@ where
                     self.pending = None;
                 }
             } else {
-                // No need to query
+                // No need to query anymore
                 return Ok(Async::Ready(None));
             }
         }
@@ -96,7 +96,7 @@ where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
 {
-    type Item = (Option<C>, RV);
+    type Item = (Option<C>, Option<RV>);
     type Error = RedisError;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
@@ -110,9 +110,15 @@ where
                 None
             };
 
-            Ok(Async::Ready(Some((con, item))))
+            Ok(Async::Ready(Some((con, Some(item)))))
         } else {
-            ready
+            match ready {
+                Ok(Async::Ready(None)) => {
+                    // At the end, try to return the connection if it's not yet returned.
+                    Ok(Async::Ready(self.con.take().map(|con| (Some(con), None))))
+                }
+                ready => ready,
+            }
         }
     }
 }
@@ -137,22 +143,22 @@ where
     C: ConnectionLike + Send + 'static,
     RV: FromRedisValue + Send + 'static,
 {
-    type Item = (Option<C>, Vec<RV>);
+    type Item = (C, Vec<RV>);
     type Error = RedisError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         loop {
             match try_ready!(self.inner.poll()) {
-                Some((None, item)) => {
-                    self.items.push(item);
-                    continue;
+                Some((con, item)) => {
+                    if let Some(item) = item {
+                        self.items.push(item);
+                    }
+                    if let Some(con) = con {
+                        // RedisScanStream guarantees it returns `Some(con)` with last item.
+                        return Ok(Async::Ready((con, self.items.split_off(0))));
+                    }
                 }
-                Some((Some(con), item)) => {
-                    self.items.push(item);
-                    // RedisScanStream guarantees that it returns `Some(con)` with last item.
-                    return Ok(Async::Ready((Some(con), self.items.split_off(0))));
-                }
-                None => return Ok(Async::Ready((None, vec![]))),
+                None => unreachable!("RedisScanStream didn't return connection"),
             }
         }
     }
