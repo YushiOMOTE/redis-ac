@@ -20,8 +20,14 @@ jobs:
       run: cargo build --verbose
     - name: Build (geospatial)
       run: cargo build --verbose --features geospatial
-    - name: Run tests
+    - name: Run tests (with items)
       run: cargo test --verbose
       env:
         NO_REDIS: 1
+        RUST_TEST_THREADS: 1
+    - name: Run tests (without items)
+      run: cargo test --verbose
+      env:
+        NO_REDIS: 1
+        SAMPLE_COUNT: 0
         RUST_TEST_THREADS: 1

@@ -27,7 +27,7 @@ fn scan() {
         let exp = write_values("key");
 
         c.get_async_connection()
-            .and_then(|con| con.scan().map(|(_, v)| v).collect())
+            .and_then(|con| con.scan().filter_map(|(_, v)| v).collect())
             .map(|mut res: Vec<String>| {
                 res.sort();
                 assert_eq!(res, keys(exp))
@@ -42,8 +42,23 @@ fn scan_match() {
         let _ = write_values("garbage");
 
         c.get_async_connection()
-            .and_then(|con| con.scan_match("key:*").map(|(_, v)| v).collect())
+            .and_then(|con| con.scan_match("key:*").filter_map(|(_, v)| v).collect())
             .map(|mut res: Vec<String>| {
+                res.sort();
+                assert_eq!(res, keys(exp))
+            })
+    })
+}
+
+#[test]
+fn scan_match_all() {
+    test(|c| {
+        let exp = write_values("key");
+        let _ = write_values("garbage");
+
+        c.get_async_connection()
+            .and_then(|con| con.scan_match("key:*").all())
+            .map(|(_, mut res): (_, Vec<String>)| {
                 res.sort();
                 assert_eq!(res, keys(exp))
             })
@@ -56,7 +71,14 @@ fn hscan() {
         let exp = write_hash_values("hash", "key");
 
         c.get_async_connection()
-            .and_then(|con| con.hscan("hash").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.hscan("hash")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<(String, String)>| {
                 res.sort();
                 assert_eq!(res, both(exp))
@@ -71,8 +93,30 @@ fn hscan_match() {
         let _ = write_hash_values("hash", "garbage");
 
         c.get_async_connection()
-            .and_then(|con| con.hscan_match("hash", "key:*").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.hscan_match("hash", "key:*")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<(String, String)>| {
+                res.sort();
+                assert_eq!(res, both(exp))
+            })
+    })
+}
+
+#[test]
+fn hscan_match_all() {
+    test(|c| {
+        let exp = write_hash_values("hash", "key");
+        let _ = write_hash_values("hash", "garbage");
+
+        c.get_async_connection()
+            .and_then(|con| con.hscan_match("hash", "key:*").all())
+            .map(move |(_, mut res): (_, Vec<(String, String)>)| {
                 res.sort();
                 assert_eq!(res, both(exp))
             })
@@ -85,7 +129,14 @@ fn sscan() {
         let exp = write_set_values("set", "key");
 
         c.get_async_connection()
-            .and_then(|con| con.sscan("set").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.sscan("set")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<String>| {
                 res.sort();
                 assert_eq!(res, keys(exp));
@@ -100,8 +151,30 @@ fn sscan_match() {
         let _ = write_set_values("set", "garbage");
 
         c.get_async_connection()
-            .and_then(|con| con.sscan_match("set", "key:*").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.sscan_match("set", "key:*")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<String>| {
+                res.sort();
+                assert_eq!(res, keys(exp));
+            })
+    })
+}
+
+#[test]
+fn sscan_match_all() {
+    test(|c| {
+        let exp = write_set_values("set", "key");
+        let _ = write_set_values("set", "garbage");
+
+        c.get_async_connection()
+            .and_then(|con| con.sscan_match("set", "key:*").all())
+            .map(move |(_, mut res): (_, Vec<String>)| {
                 res.sort();
                 assert_eq!(res, keys(exp));
             })
@@ -114,7 +187,14 @@ fn zscan() {
         let exp = write_zset_values("zset", "key");
 
         c.get_async_connection()
-            .and_then(|con| con.zscan("zset").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.zscan("zset")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<(String, String)>| {
                 res.sort();
                 assert_eq!(res, both(exp));
@@ -129,8 +209,30 @@ fn zscan_match() {
         let _ = write_zset_values("zset", "garbage");
 
         c.get_async_connection()
-            .and_then(|con| con.zscan_match("zset", "key:*").map(|(_, v)| v).collect())
+            .and_then(|con| {
+                con.zscan_match("zset", "key:*")
+                    .filter_map(|(c, v)| {
+                        assert!((c.is_some() && v.is_none()) || v.is_some());
+                        v
+                    })
+                    .collect()
+            })
             .map(move |mut res: Vec<(String, String)>| {
+                res.sort();
+                assert_eq!(res, both(exp));
+            })
+    })
+}
+
+#[test]
+fn zscan_match_all() {
+    test(|c| {
+        let exp = write_zset_values("zset", "key");
+        let _ = write_zset_values("zset", "garbage");
+
+        c.get_async_connection()
+            .and_then(|con| con.zscan_match("zset", "key:*").all())
+            .map(move |(_, mut res): (_, Vec<(String, String)>)| {
                 res.sort();
                 assert_eq!(res, both(exp));
             })

@@ -137,8 +137,15 @@ where
     data2
 }
 
+pub fn count() -> usize {
+    std::env::var("SAMPLE_COUNT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(10000)
+}
+
 pub fn write_values(prefix: &str) -> Vec<(String, String)> {
-    let data: Vec<_> = (0..10000)
+    let data: Vec<_> = (0..count())
         .map(|i| (format!("{}:{:06}", prefix, i), format!("value{}", i)))
         .collect();
 
@@ -146,7 +153,7 @@ pub fn write_values(prefix: &str) -> Vec<(String, String)> {
 }
 
 pub fn write_hash_values(set: &str, prefix: &str) -> Vec<(String, String)> {
-    let data: Vec<_> = (0..10000)
+    let data: Vec<_> = (0..count())
         .map(|i| (format!("{}:{:06}", prefix, i), format!("value{}", i)))
         .collect();
 
@@ -155,7 +162,7 @@ pub fn write_hash_values(set: &str, prefix: &str) -> Vec<(String, String)> {
 }
 
 pub fn write_set_values(set: &str, prefix: &str) -> Vec<(String, String)> {
-    let data: Vec<_> = (0..10000)
+    let data: Vec<_> = (0..count())
         .map(|i| (format!("{}:{:06}", prefix, i), "unused".into()))
         .collect();
 
@@ -164,7 +171,7 @@ pub fn write_set_values(set: &str, prefix: &str) -> Vec<(String, String)> {
 }
 
 pub fn write_zset_values(set: &str, prefix: &str) -> Vec<(String, String)> {
-    let data: Vec<_> = (0..10000)
+    let data: Vec<_> = (0..count())
         .map(|i| (format!("{}:{:06}", prefix, i), format!("{}", i)))
         .collect();
 
