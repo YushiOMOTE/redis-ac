@@ -47,14 +47,12 @@ fn main() {
         .get_shared_async_connection()
         .and_then(|con| {
             con.scan_match("key*")
-                .map(|(_, v): (_, String)| v)
-                .collect()
-        })
-        .map(|res| {
-            println!("{:?}", res);
-        })
-        .map_err(|e| panic!("{}", e));
+                .filter_map(|(_, item)| item)
+                .for_each(|item: String| {
+                    // Here we get items.
+                    Ok(())
+                })
+        }).map_err(|e| eprintln!("{}", e));
 
     tokio::run(f);
-}
 ```
