@@ -50,9 +50,11 @@ fn main() {
                 .filter_map(|(_, item)| item)
                 .for_each(|item: String| {
                     // Here we get items.
+                    println!("{}", item);
                     Ok(())
                 })
-        }).map_err(|e| eprintln!("{}", e));
+        }).map_err(|e| panic!("{}", e));
 
     tokio::run(f);
+}
 ```
