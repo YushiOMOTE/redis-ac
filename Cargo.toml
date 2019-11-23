@@ -1,6 +1,6 @@
 [package]
 name = "redis-ac"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Yushi Omote <yushi.omote@sbibits.com>"]
 keywords = ["redis", "database"]
 description = "Asynchronuos commands helper for redis-rs"
