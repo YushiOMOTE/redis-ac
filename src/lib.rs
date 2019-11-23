@@ -88,9 +88,13 @@
 //! # }
 //! ```
 
+#![cfg_attr(feature = "readme", feature(external_doc))]
 #![warn(missing_docs)]
 
 mod commands;
 mod stream;
+
+#[cfg_attr(feature = "readme", doc(include = "../README.md"))]
+type _Doctest = ();
 
 pub use crate::commands::{Commands, RedisScanAll, RedisScanStream};

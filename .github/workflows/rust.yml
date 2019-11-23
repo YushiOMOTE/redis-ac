@@ -31,3 +31,14 @@ jobs:
         NO_REDIS: 1
         SAMPLE_COUNT: 0
         RUST_TEST_THREADS: 1
+    - name: Install nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+    - name: Test nightly (with readme)
+      run: cargo test --verbose --features readme
+      env:
+        NO_REDIS: 1
+        SAMPLE_COUNT: 10
+        RUST_TEST_THREADS: 1
