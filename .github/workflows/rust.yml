@@ -14,6 +14,11 @@ jobs:
         - 6379:6379
         options: --entrypoint redis-server
 
+    env:
+      NO_REDIS: 1
+      RUST_TEST_THREADS: 1
+      SAMPLE_COUNT: 10
+
     steps:
     - uses: actions/checkout@v1
     - name: Build
@@ -23,14 +28,11 @@ jobs:
     - name: Run tests (with items)
       run: cargo test --verbose
       env:
-        NO_REDIS: 1
-        RUST_TEST_THREADS: 1
+        SAMPLE_COUNT: 10000
     - name: Run tests (without items)
       run: cargo test --verbose
       env:
-        NO_REDIS: 1
         SAMPLE_COUNT: 0
-        RUST_TEST_THREADS: 1
     - name: Install nightly
       uses: actions-rs/toolchain@v1
       with:
@@ -38,7 +40,18 @@ jobs:
         override: true
     - name: Test nightly (with readme)
       run: cargo test --verbose --features readme
+    - name: Test for coverage
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-fail-fast
       env:
-        NO_REDIS: 1
-        SAMPLE_COUNT: 10
-        RUST_TEST_THREADS: 1
+        CARGO_INCREMENTAL: 0
+        RUSTFLAGS: -Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads
+    - name: Get coverage
+      uses: actions-rs/grcov@v0.1
+    - name: Coveralls upload
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ${{ steps.coverage.outputs.report }}
